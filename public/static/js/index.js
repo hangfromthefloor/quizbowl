@@ -38,28 +38,27 @@ bridge.ready(function(){
     window.readerService  = obj;
   });
   bridge.getService('ticker',function(ticker){
-    ticker.join({push:function(ticker) {
-      appendToTicker(ticker,true);
+    ticker.join({
+      push: function(ticker) {
+        appendToTicker(ticker,true);
+      },
+      users: function(users) {
+        // users is an object, so let's make a list from it
+        var usersList = [];
+        for (var i in users)
+          usersList.push(users[i].username);
+        // sort the list, then join its elements with line breaks to get the tooltip
+        var usersTooltip = usersList.sort().join('<br />');
+
+        window.users = users;
+        $("#usersOnlineText").html("Users Online (" + usersList.length +" )");
+        $("#usersOnlineText").tooltip();
+        $("#usersOnlineText").attr("data-original-title", usersTooltip);
+      }
     },
-      users:function(users){
-              var count = 0;
-              for (var i in users){
-                count++;
-              }
-              window.users = users;
-              $("#usersOnlineText").html("Users Online (" +count+")");
-              var userString = "";
-              var delimiter = "";
-              for( var i in users) {
-                userString += delimiter+users[i].username;
-                delimiter = "<br/>";
-              }
-              $("#usersOnlineText").tooltip();
-              $("#usersOnlineText").attr("data-original-title", userString);
-            }
-    },function(curTicker){
+    function(curTicker){
       for (var i in curTicker){
-        appendToTicker(curTicker[curTicker.length-1-i],false);
+        appendToTicker(curTicker[curTicker.length - 1 - i],false);
       }
     });
   });
@@ -73,7 +72,13 @@ var bridgeError = function(message, e) {
 }
 
 var appendToTicker = function(ticker, animation){
-  var j = $("<div class='ticker'><div style=\"width:50px;height:50px;float:left;margin-right:5px;background-image:url('https://graph.facebook.com/"+ticker.user.fbId+"/picture')\"></div><div class='tickerText'><b>"+ticker.user.username+"</b> <span class='tickerDescription'>"+ticker.text+"</span></div></div>");
+  var j = $('<div class="ticker">\
+               <div class="tickerPic" style="background-image:url(\'https://graph.facebook.com/'+ticker.user.fbId+'/picture\')"></div>\
+               <div class="tickerText">\
+                 <b>'+ticker.user.username+'</b> \
+                 <span class="tickerDescription">'+ticker.text+'</span>\
+               </div>\
+             </div>');
   if (animation){
     j.hide().prependTo("#tickerBox").slideDown({animate:"20000ms"}); 
   } else {
