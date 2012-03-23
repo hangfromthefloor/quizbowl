@@ -157,27 +157,19 @@ $(function() {
   var fullBodyContentWidth = $("#body-content").width();
   $("#tickerHide").click(function(){
 
+    $("#tickerHideCollapse").toggle();
+    $("#tickerHideExpand").toggle();
     if (!show) {
       $("#tickerWrapper").animate({right:"-200px"});
-      $("#tickerHide").html("<");
       $("#body-content").animate({width: fullBodyContentWidth+"px"});
 
     } else { 
       $("#tickerWrapper").animate({right:"0px"});
-      $("#tickerHide").html(">");
       $("#body-content").animate({width: fullBodyContentWidth-200+"px"});
     }
     show = !show;
 
   });
-
-  if (show) {
-    $("#tickerHide").html("<");
-    $("#body-content").css({width: fullBodyContentWidth+"px"});
-  } else { 
-    $("#tickerHide").html(">");
-    $("#body-content").css({width: fullBodyContentWidth-200+"px"});
-  }
 });
 
 var homeSearch = function(obj) {
