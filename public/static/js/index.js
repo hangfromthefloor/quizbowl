@@ -552,6 +552,7 @@ var buzzClick = function() {
   $("#reader-buzz, #reader-skip").remove();
   addSubmitAnswer();
   buzzTimeout = setTimeout(timesUp, 10000);
+  startProgressTimer();
 };
 
 var addSubmitAnswer = function() {
@@ -570,7 +571,28 @@ var addSubmitAnswer = function() {
   $("#reader-input").focus();
 };
 
+var startProgressTimer = function() {
+    clearTimeout(window.progressTimeout);
+    console.log(0);
+    $('#reader-feedback-text').html('<div class="progress progress-danger progressTimer"><div class="bar" style="width: 100%;"></div></div>');
+    window.progressTimerBar = $('#reader-feedback-text .bar');
+    window.buzzTime = 10;
+    window.progressTimerStart = +new Date() + window.buzzTime * 1e3; // 10 milliseconds in the future
+    runProgressTimer();
+    console.log(1);
+};
+var stopProgressTimer = function() {
+    clearTimeout(window.progressTimeout);
+};
+var runProgressTimer = function() {
+    var secondsLeft = (window.progressTimerStart - new Date()) / 1e3;
+    var percentLeft = 100 * (secondsLeft / window.buzzTime);
+    $(window.progressTimerBar).css('width', percentLeft + '%');
+    window.progressTimeout = setTimeout(runProgressTimer, 100);
+};
+
 var timesUp = function() {
+  stopProgressTimer();
   notifyBottom("Time's up!", false);
   setTimeout(function() {
     $("#reader-feedback-text").animate({opacity: 0}, 500);
