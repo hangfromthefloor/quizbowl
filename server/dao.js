@@ -13,9 +13,9 @@ var Dao = function(host, user, password, database){
       if (!err){
       totalcount = results[0]['count(*)'];
       } else {
-              console.log(err);
+      console.log(err);
       }
-  });
+      });
   tossup = this.tossup;
   this.user = {};
   this.rating = {};
@@ -30,91 +30,93 @@ var Dao = function(host, user, password, database){
         });
   }
   this.tossup.search = function(temp, callback) {
+
     if (temp.params) {
       obj = temp.params;
     } else {
       obj = {};
+    } 
+    var query = "";
+    if (obj['condition']!==undefined && obj['answer']!==undefined){
+      if (obj['condition']=="all"){
+        query += "(t.answer like '%" + util.escapeSql(obj['answer']).replace(/ /g,'%') +"%' or t.question like '%" + obj['answer'].replace(/ /g,'%')+"%')";	
+      } else if (obj['condition']=="question") {
+        query +="(t.question like '%"+util.escapeSql(obj['answer']).replace(/ /g,'%') + "%')";
+      } else if (obj['condition']=="answer") {
+        query += "(t.answer like '%"+util.escapeSql(obj['answer']).replace(/ /g,'%')+"%')";
+      }
+    } else {
+      if (obj['answer']!==undefined){
+        query += "(t.answer like '%" + util.escapeSql(obj['answer']).replace(/ /g,'%')+"%')";
+      } else {
+        query += "(t.answer like '%%')";
+      }
+      if (obj['question'] !== undefined){
+        query += " and (t.question like '%" + util.escapeSql(obj['question']).replace(/ /g,'%') + "%')";
+      }
     }
-    console.log(obj);
-    if (obj['random']=='true' || cache[JSON.stringify(obj)] === undefined){
-      var query = "";
-      if (obj['condition']!==undefined && obj['answer']!==undefined){
-        if (obj['condition']=="all"){
-          query += "(t.answer like '%" + util.escapeSql(obj['answer']).replace(/ /g,'%') +"%' or t.question like '%" + obj['answer'].replace(/ /g,'%')+"%')";	
-        } else if (obj['condition']=="question") {
-          query +="(t.question like '%"+util.escapeSql(obj['answer']).replace(/ /g,'%') + "%')";
-        } else if (obj['condition']=="answer") {
-          query += "(t.answer like '%"+util.escapeSql(obj['answer']).replace(/ /g,'%')+"%')";
-        }
-      } else {
-        if (obj['answer']!==undefined){
-          query += "(t.answer like '%" + util.escapeSql(obj['answer']).replace(/ /g,'%')+"%')";
-        } else {
-          query += "(t.answer like '%%')";
-        }
-        if (obj['question'] !== undefined){
-          query += " and (t.question like '%" + util.escapeSql(obj['question']).replace(/ /g,'%') + "%')";
-        }
-      }
-      if (obj['tournament']!==undefined){
-        query = util.addQueryTerm(query,'t.tournament',obj['tournament'],'like');
-      }
-      if (obj['round']!==undefined){
-        query = util.addQueryTerm(query,'t.round',obj['round'],'like');
-      }
-      if (obj['year']!==undefined){
-        query = util.addQueryTerm(query,'t.year',obj['year'],'=');
-      }
-      if (obj['category']!==undefined){
-        query = util.addQueryTerm(query,'t.category',obj['category'],'like');
-      }
-      if (obj['questionNum']!==undefined){
-        query = util.addQueryTerm(query,'t.question_num',obj['questionNum'],'like');
-      }
-      if (obj['difficulty']!==undefined){
-        query = util.addQueryTerm(query,'t.difficulty',obj['difficulty'],'like');
-      }
-      limitstring = "";
-      if (obj['random']!==undefined){
-        if (obj['random']=='true'){
-          if (obj['limit']!==undefined){
-            limitstring+= " order by rand()";
-          } else {
-            var num = Math.floor(Math.random()*totalcount);
-if (!(obj['answer']=="" && !(obj['difficulty']||obj['tournament']||obj['category']||obj['year']))){
-              limitstring +=" order by rand() limit 1"; 
-            } else {
-              query+=" and t.id="+num;
-            }
+    if (obj['tournament']!==undefined){
+      query = util.addQueryTerm(query,'t.tournament',obj['tournament'],'=',true);
+    }
+    if (obj['round']!==undefined){
+      query = util.addQueryTerm(query,'t.round',obj['round'],'=',true);
+    }
+    if (obj['year']!==undefined){
+      query = util.addQueryTerm(query,'t.year',obj['year'],'=',false);
+    }
+    if (obj['category']!==undefined){
+      query = util.addQueryTerm(query,'t.category',obj['category'],'=',true);
+    }
+    if (obj['questionNum']!==undefined){
+      query = util.addQueryTerm(query,'t.question_num',obj['questionNum'],'=',false);
+    }
+    if (obj['difficulty']!==undefined){
+      query = util.addQueryTerm(query,'t.difficulty',obj['difficulty'],'=',true);
+    }
+    limitstring = "";
+    console.log(obj['random']);
+    if (obj['random']=='true'){
+      countstring = 'select count(id) from tossups t where '+query;
+      client.query(countstring, function(err, results, fields){
+          if (!err){
+          c = results[0]['count(id)'];
+          var offset = Math.floor(Math.random()*c);
+          var limit = '1';
+          if (obj['limit']){
+          limit = obj['limit'];
           }
-        }
-        query += " group by t.pKey";
-      } else {	
-        query += " group by t.pKey";
-        if (obj['sort'] == undefined || obj['sort'] == 'date') {
-          query += " order by year desc, tournament asc, round asc,question_num asc";
-        } else if (obj['sort'] == 'rating') {
-          query += " order by sum(r.rating) desc";
-        }
-        if (obj['offset']!==undefined) {
-          limitstring += " limit "+pageLength+" offset "+obj['offset'];
-        } else {
-          limitstring += " limit "+pageLength;
-        }
+          querystring = 'select t.tournament,t.year,t.question, t.answer, t.round, t.question_num, t.difficulty, t.pKey,t.category, t.accept from tossups t where '+query+' limit '+limit+' offset '+offset;
+          client.query(querystring,function selectCb(err,results,fields){
+            if (!err) {
+            callback({'count':limit,'offset':offset,'results':results});
+            } else{ 
+            console.log(err);
+            callback({offset:0,results:[]});
+            }
+            });
+          } else {
+          console.log(err);
+          }
+          });
+    } else {	
+      query += " group by t.pKey";
+      if (obj['sort'] == undefined || obj['sort'] == 'date') {
+        query += " order by year desc, tournament asc, round asc,question_num asc";
+      } else if (obj['sort'] == 'rating') {
+        query += " order by sum(r.rating) desc";
       }
-      if (obj['username']!==undefined){
-        querystring = 'select t.tournament,t.year,t.question, t.answer, t.round, t.question_num, t.difficulty, t.pKey,t.category, t.accept, sum(r.rating) as rating,(select rating from ratings where user="'+obj['username']+'" and question=t.pKey) user_rating from tossups t left outer join ratings r on t.pKey = r.question where '+query+limitstring;
+      if (obj['offset']!==undefined) {
+        limitstring += " limit "+pageLength+" offset "+obj['offset'];
       } else {
-        querystring = 'select t.tournament,t.year,t.question, t.answer, t.round, t.question_num, t.difficulty, t.pKey,t.category, t.accept, sum(r.rating) as rating from tossups t left outer join ratings r on t.pKey = r.question where '+query+limitstring;
+        limitstring += " limit "+pageLength;
       }
-      countstring = 'select count(*),sum(r.rating) from tossups t left outer join ratings r on t.pKey = r.question where '+query;
-      console.log(querystring);
+      querystring = 'select t.tournament,t.year,t.question, t.answer, t.round, t.question_num, t.difficulty, t.pKey,t.category, t.accept from tossups t where '+query+limitstring;
+      countstring = 'select count(*) from tossups t where '+query;
       client.query(countstring,function(err,results,fields){
           if (!err) {
           count = results.length;
           client.query(querystring,function selectCb(err,results,fields){
             if (!err) {
-            cache[JSON.stringify(obj)]={'count':count,'offset':obj['offset'],'results':results};
             if (!obj['offset'])
             obj['offset']=0; 
             callback({'count':count,'offset':obj['offset'],'results':results});
@@ -128,8 +130,6 @@ if (!(obj['answer']=="" && !(obj['difficulty']||obj['tournament']||obj['category
           callback({offset:0,results:[]});
           }
           });
-    } else {
-      callback(cache[JSON.stringify(obj)]);
     }
   }
   this.data = function(callback) {
@@ -212,6 +212,9 @@ if (!(obj['answer']=="" && !(obj['difficulty']||obj['tournament']||obj['category
         }
         });
   }
+  this.user.stats = function(user, callback){
+
+  }
   this.rating.add = function(obj,callback){
     client.query("select * from ratings where user='"+obj.username+"' and question = '"+util.escapeSql(obj.question)+"'",function selectCb(err,result,fields){
         if (result.length!=0){
@@ -239,7 +242,7 @@ var util = {
 escapeSql:function(str) {
             return str.replace(/'/g,"''").replace(/\\/g,'\\\\');
           },
-addQueryTerm:function(str,param,value,comp){
+addQueryTerm:function(str,param,value,comp,quotes){
                values = value.split("|");
                str += " and (";
                delimiter = "";
@@ -249,12 +252,12 @@ addQueryTerm:function(str,param,value,comp){
                    str+="((t.year = "+values[i].substring(0, 4).trim()+") and ";
                    str+="(t.tournament like '%"+values[i].substring(5).trim().replace(/ /g,'%')+"%'))";
                  } else {
-                   if (comp=="="){
+                   if (!quotes){
                      separator = "";
                    } else {
                      separator = "'";
                    }
-                   str+="("+param+" "+comp+" "+separator+values[i].replace(/ /g,"%")+separator+")";
+                   str+="("+param+" "+comp+" "+separator+values[i]+separator+")";
                  }
                  delimiter = " or ";
                }
